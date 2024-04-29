@@ -4,3 +4,5 @@ setUpCanvas(
     config.canvas.charSize,
     config.canvas.id
 );
+
+drawChars();
