@@ -1,10 +1,10 @@
 class AsciiDisplay {
 
+    #displayLayers;
     #width;
     #height;
     #charSize;
     #ctx;
-    #displayLayers;
 
     constructor(width, height, charSize, canvasID) {
 
@@ -15,18 +15,26 @@ class AsciiDisplay {
         document.getElementById(canvasID).width = (charSize * 10 / 16) * width;
         document.getElementById(canvasID).height = charSize * height;
         this.#ctx = document.getElementById(canvasID).getContext("2d");
-        this.#ctx.font = displayData.#charSize + "px monospace";
+        this.#ctx.font = this.#charSize + "px monospace";
         this.#displayLayers = {};
 
+    }
+
+    get width() {
+        return this.#width;
+    }
+
+    get height() {
+        return this.#height;
     }
 
     drawChars() {
         for (let i = 0; i < this.#width; ++i) {
             for (let j = 0; j < this.#height; ++j) {
-    
+
                 this.#ctx.fillStyle = "#" +
                     (this.chars[i + j * this.#width] & 0XFFFFFF).toString(16);
-    
+
                 this.#ctx.fillText(
                     String.fromCharCode(
                         (this.chars[i + j * this.#width] & 0XFF000000) >>> 24
@@ -38,18 +46,48 @@ class AsciiDisplay {
         }
     }
 
-    addDisplayLayer(layerName, ){
-        this.#displayLayers[layerName] = new DisplayLayer();
+    addDisplayLayer(layerName) {
+        this.#displayLayers[layerName] = new DisplayLayer(this.#width, this.#height);
     }
 
-    removeDisplayLayer(layerName){
-
+    removeDisplayLayer(layerName) {
+        delete this.#displayLayers[layerName];
     }
+
+
 }
 
-class DisplayLayer{
-    constructor(){
-        
+class DisplayLayer {
+
+    #chars;
+    #shader;
+    #hasShader;
+    #asciiObjects;
+    #width;
+    #height;
+
+    constructor(width, height) {
+        this.#width = width;
+        this.#height = height;
+        this.#chars = new Int32Array(width, height);
+        this.#shader = undefined;
+        this.#hasShader = false;
+        this.#asciiObjects = {};
+    }
+
+    set shader(shaderFunction){
+        if(typeof shaderFunction === "function"){
+            this.#shader = shaderFunction;
+        };
+        this.#hasShader = true;
+    }
+
+    removeShader(){
+        this.#hasShader = false;
+    }
+
+    addAsciiObject(asciiObject){
+        this.#asciiObjects.push(asciiObject);
     }
 }
 
