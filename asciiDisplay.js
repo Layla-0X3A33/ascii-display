@@ -1,10 +1,11 @@
 class AsciiDisplay {
 
-    #displayLayers;
     #width;
     #height;
     #charSize;
     #ctx;
+    #shader;
+    #hasShader;
 
     constructor(width, height, charSize, canvasID) {
 
@@ -16,7 +17,7 @@ class AsciiDisplay {
         document.getElementById(canvasID).height = charSize * height;
         this.#ctx = document.getElementById(canvasID).getContext("2d");
         this.#ctx.font = this.#charSize + "px monospace";
-        this.#displayLayers = {};
+        this.displayLayer = {};
 
     }
 
@@ -47,13 +48,25 @@ class AsciiDisplay {
     }
 
     addDisplayLayer(layerName) {
-        this.#displayLayers[layerName] = new DisplayLayer(this.#width, this.#height);
+        const layer = new DisplayLayer(this.#width, this.#height)
+        this.displayLayer[layerName] = layer;
+        return layer;
     }
 
     removeDisplayLayer(layerName) {
-        delete this.#displayLayers[layerName];
+        delete this.displayLayer[layerName];
     }
 
+    set shader(shaderFunction){
+        if(typeof shaderFunction === "function"){
+            this.#shader = shaderFunction;
+        };
+        this.#hasShader = true;
+    }
+
+    removeShader(){
+        this.#hasShader = false;
+    }
 
 }
 
@@ -62,7 +75,6 @@ class DisplayLayer {
     #chars;
     #shader;
     #hasShader;
-    #asciiObjects;
     #width;
     #height;
 
@@ -72,7 +84,7 @@ class DisplayLayer {
         this.#chars = new Int32Array(width, height);
         this.#shader = undefined;
         this.#hasShader = false;
-        this.#asciiObjects = {};
+        this.asciiObjects = [];
     }
 
     set shader(shaderFunction){
@@ -87,7 +99,22 @@ class DisplayLayer {
     }
 
     addAsciiObject(asciiObject){
-        this.#asciiObjects.push(asciiObject);
+        this.asciiObjects.push(asciiObject);
+    }
+
+
+}
+
+class AsciiObject{
+    constructor(x, y, width, height, chars){
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        if(chars.length === (width * height))
+            this.chars = new Int32Array(chars);
+        else
+            this.chars = new Int32Array(width * height);
     }
 }
 
