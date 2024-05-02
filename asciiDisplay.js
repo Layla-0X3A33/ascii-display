@@ -4,6 +4,7 @@ class AsciiDisplay {
     #height;
     #charSize;
     #ctx;
+    #chars;
     #shader;
     #hasShader;
 
@@ -11,14 +12,14 @@ class AsciiDisplay {
 
         this.#width = width;
         this.#height = height;
-        this.chars = new Int32Array(width * height);
+        this.#chars = new Int32Array(width * height);
         this.#charSize = charSize;
         document.getElementById(canvasID).width = (charSize * 10 / 16) * width;
         document.getElementById(canvasID).height = charSize * height;
         this.#ctx = document.getElementById(canvasID).getContext("2d");
         this.#ctx.font = this.#charSize + "px monospace";
-        this.displayLayer = {};
-
+        this.displayLayers = {};
+        this.camera = { x: 0, y: 0 };
     }
 
     get width() {
@@ -30,15 +31,29 @@ class AsciiDisplay {
     }
 
     drawChars() {
+        for(let i = this.#width * this.#height; i-- > 0;){
+            this.#chars[0] = 0;
+        }
+
+        for (layer in this.displayLayers) {
+            temp = this.displayLayers[layer];
+            transferCharData(
+                temp.x, temp.y, temp.width, temp.height, temp.shadedChars,
+                0, 0, this.#width, this.#height, this.#chars
+            )
+        }
+
+        if(this.#hasShader)this.#chars = this.#shader(this.#chars);
+
         for (let i = 0; i < this.#width; ++i) {
             for (let j = 0; j < this.#height; ++j) {
 
                 this.#ctx.fillStyle = "#" +
-                    (this.chars[i + j * this.#width] & 0XFFFFFF).toString(16);
+                    (this.#chars[i + j * this.#width] & 0XFFFFFF).toString(16);
 
                 this.#ctx.fillText(
                     String.fromCharCode(
-                        (this.chars[i + j * this.#width] & 0XFF000000) >>> 24
+                        (this.#chars[i + j * this.#width] & 0XFF000000) >>> 24
                     ),
                     i * (this.#charSize * 10 / 16),
                     j * this.#charSize + (this.#charSize * 14 / 16)
@@ -48,23 +63,23 @@ class AsciiDisplay {
     }
 
     addDisplayLayer(layerName) {
-        const layer = new DisplayLayer(this.#width, this.#height)
-        this.displayLayer[layerName] = layer;
+        const layer = new DisplayLayer(this.#width, this.#height, this.camera)
+        this.displayLayers[layerName] = layer;
         return layer;
     }
 
     removeDisplayLayer(layerName) {
-        delete this.displayLayer[layerName];
+        delete this.displayLayers[layerName];
     }
 
-    set shader(shaderFunction){
-        if(typeof shaderFunction === "function"){
+    set shader(shaderFunction) {
+        if (typeof shaderFunction === "function") {
             this.#shader = shaderFunction;
         };
         this.#hasShader = true;
     }
 
-    removeShader(){
+    removeShader() {
         this.#hasShader = false;
     }
 
@@ -78,43 +93,83 @@ class DisplayLayer {
     #width;
     #height;
 
-    constructor(width, height) {
+    constructor(width, height, camera) {
         this.#width = width;
         this.#height = height;
         this.#chars = new Int32Array(width, height);
         this.#shader = undefined;
         this.#hasShader = false;
         this.asciiObjects = [];
+        this.display = true;
+        this.camera = camera;
+        this.relativePosition = true;
     }
 
-    set shader(shaderFunction){
-        if(typeof shaderFunction === "function"){
+    set shader(shaderFunction) {
+        if (typeof shaderFunction === "function") {
             this.#shader = shaderFunction;
         };
         this.#hasShader = true;
     }
 
-    removeShader(){
+    removeShader() {
         this.#hasShader = false;
     }
 
-    addAsciiObject(asciiObject){
+    set addAsciiObject(asciiObject) {
         this.asciiObjects.push(asciiObject);
     }
 
+    get layerAscii() {
+        for (let i = this.#width * this.#height; i-- > 0;) {
+            this.#chars[i] = 0;
+        }
+        for (let i = 0; i > this.asciiObjects.length; ++i) {
+            const temp = this.asciiObjects[i];
+            transferCharData(
+                temp.x, temp.y, temp.width, temp.height, temp.shadedChars,
+                ((this.relativePosition) ? this.camera.x : 0),
+                ((this.relativePosition) ? this.camera.y : 0),
+                this.#width, this.#height, this.#chars
+            );
+        }
+    }
 
+    get shadedChars() {
+        return (this.#hasShader) ? this.#shader(this.#chars) : this.#chars;
+    }
 }
 
-class AsciiObject{
-    constructor(x, y, width, height, chars){
+class AsciiObject {
+
+    #shader;
+    #hasShader;
+    #chars;
+
+    constructor(x, y, width, height, chars) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-        if(chars.length === (width * height))
-            this.chars = new Int32Array(chars);
+        if (chars.length === (width * height))
+            this.#chars = new Int32Array(chars);
         else
-            this.chars = new Int32Array(width * height);
+            this.#chars = new Int32Array(width * height);
+    }
+
+    set shader(shaderFunction) {
+        if (typeof shaderFunction === "function") {
+            this.#shader = shaderFunction;
+        };
+        this.#hasShader = true;
+    }
+
+    removeShader() {
+        this.#hasShader = false;
+    }
+
+    get shadedChars() {
+        return (this.#hasShader) ? this.#shader(this.#chars) : this.#chars;
     }
 }
 
