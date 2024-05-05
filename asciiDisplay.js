@@ -94,14 +94,17 @@ class AsciiDisplay {
         }
     }
 
-    addDisplayLayer() {
-        const layer = new DisplayLayer(this.#width, this.#height, this.camera);
+    addDisplayLayer(name) {
+        const layer = new DisplayLayer(this.#width, this.#height, this.camera, name);
         this.displayLayers.push(layer);
         return layer;
     }//this adds a layer and returns that layer
 
-    removeDisplayLayer(layer) {
-        this.displayLayers.splice(layer, 1);
+    removeDisplayLayer(layerName) {
+        for(let i = this.displayLayers.length; i-- > 0;){
+            if(this.displayLayers[i].name === layerName)
+                this.displayLayers.splice(i, 1);
+        }
     }//this removes a layer
 
     set shader(shaderFunction) {
@@ -125,8 +128,11 @@ class DisplayLayer {
     #width;
     #height;
     #camera;
+    #name;
 
-    constructor(width, height, camera) {
+    constructor(width, height, camera, name) {
+        this.#name = name;
+
         this.#width = width;  //sets the width and heigth to the width and height of the 
         this.#height = height;//instance of AsciiDisplay that created the layer.
 
@@ -147,6 +153,10 @@ class DisplayLayer {
         ///the camera or from (0, 0).
     }
 
+    get name() {
+        return this.#name;
+    }
+
     set shader(shaderFunction) {
         if (typeof shaderFunction === "function") {
             this.#shader = shaderFunction;
@@ -158,9 +168,18 @@ class DisplayLayer {
         this.#hasShader = false;
     }//removes shader
 
-    set addAsciiObject(asciiObject) {
+    addAsciiObject(x, y, width, height, name, chars) {
+        const asciiObject = new AsciiObject(x, y, width, height, name, chars);
         this.asciiObjects.push(asciiObject);
-    }//adds ascii objects to the layer
+        return asciiObject;
+    }//adds ascii objects to the layer and returns the object
+
+    removeAsciiObject(objectName) {
+        for(let i = this.asciiObjects.length; i-- > 0;){
+            if(this.asciiObjects[i].name === objectName)
+                this.asciiObjects.splice(i, 1);
+        }
+    }//removes ascii objects from the layer
 
     get layerAscii() {//gets the display data from ascii objects in the layer,
         //and transfers that data to the layer
@@ -197,9 +216,11 @@ class AsciiObject {
     #chars;
     #width;
     #height;
+    #name;
 
-    constructor(x, y, width, height, chars) {
-        
+    constructor(x, y, width, height, name, chars) {
+        this.#name = name;
+
         this.x = x;//
         this.y = y;//x and y positions
 
@@ -215,6 +236,10 @@ class AsciiObject {
         //creates the array that stores chars in the asciiObject,
         //and if a valid array is provided, it is used.
     }
+
+    get name() {
+        return this.#name;
+    }//gets the name given to the object
 
     get width() {
         return this.#width;
