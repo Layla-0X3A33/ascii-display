@@ -1,3 +1,12 @@
+const config = {
+    canvas: {
+      width: 16,
+      height: 10,
+      charSize: 16,
+      id: "Canvas"
+    },
+};
+
 const display = new AsciiDisplay(
     config.canvas.width,
     config.canvas.height,
