@@ -2,6 +2,8 @@ class AsciiDisplay {
 
     #width;
     #height;
+    #canvasWidth;
+    #canvasHeight;
     #charSize;
     #ctx;
     #chars;
@@ -23,10 +25,10 @@ class AsciiDisplay {
 
         this.#charSize = charSize;//the size in pixels of each character's height.
 
-        document.getElementById(canvasID).width = (charSize * 10 / 16) * width;
+        this.#canvasWidth = document.getElementById(canvasID).width = (charSize * 10 / 16) * width;
         //the width of the canvas is the 10 16ths of charSize multiplied the width in characters.
         
-        document.getElementById(canvasID).height = charSize * height;
+        this.#canvasHeight = document.getElementById(canvasID).height = charSize * height;
         //the height of the canvas is the height in characters multiplied by charSize.
 
         this.#ctx = document.getElementById(canvasID).getContext("2d");
@@ -41,6 +43,8 @@ class AsciiDisplay {
         this.#hasShader = false;//if this is false, shaders are
         //ignored when rendering the ascii.
 
+        this.shaderInfo = {};//any info passed to the shader other than chars
+
         this.camera = { x: 0, y: 0 };//this is the camera vector. 
         //(note: this only effects layers with a relative position)
     }
@@ -54,6 +58,9 @@ class AsciiDisplay {
     }//gets height.
 
     drawChars() {//draws characters to the canvas.
+
+        this.#ctx.clearRect(0, 0, this.#canvasWidth, this.#canvasHeight);
+        //clears the canvas
 
         for (let i = this.#width * this.#height; i-- > 0;) {
             //I understand that this for loop is cursed.
@@ -71,7 +78,7 @@ class AsciiDisplay {
 
         }
 
-        if (this.#hasShader) this.#chars = this.#shader(this.#chars);
+        if (this.#hasShader) this.#chars = this.#shader(this.#chars, this.shaderInfo);
         //applies shader if one exists.
         //(note: the shader function should return an Int32Array of the
         //length this.#width * this.#heigth)
@@ -141,6 +148,7 @@ class DisplayLayer {
 
         this.#shader = undefined;//
         this.#hasShader = false; //same as AsciiDisplay, but applied to the layer.
+        this.shaderInfo = {};//any info passed to the shader other than chars
 
         this.asciiObjects = [];//stores ascii objects in the layer.
 
@@ -205,7 +213,7 @@ class DisplayLayer {
 
     get shadedChars() {
         this.layerAscii;
-        return (this.#hasShader) ? this.#shader(this.#chars) : this.#chars;
+        return (this.#hasShader) ? this.#shader(this.#chars, this.shaderInfo) : this.#chars;
     }//gets the char data of the layer and if it has a shader, applies a shader to the chars
 }
 
@@ -228,6 +236,12 @@ class AsciiObject {
         this.#height = height;//width and height
 
         this.#hasShader = false;
+
+        this.shaderInfo = {};//any info passed to the shader other than chars
+
+        if(typeof chars === "function"){
+            chars = chars();
+        }//this allows chars to be created by a function
 
         if (chars.length === (width * height))
             this.#chars = new Int32Array(chars);
@@ -261,7 +275,7 @@ class AsciiObject {
     }//removes the shader
 
     get shadedChars() {
-        return (this.#hasShader) ? this.#shader(this.#chars) : this.#chars;
+        return (this.#hasShader) ? this.#shader(this.#chars, this.shaderInfo) : this.#chars;
     }//gets chars and applies a shader if one exists.
 }
 
