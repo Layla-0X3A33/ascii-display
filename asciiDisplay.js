@@ -27,13 +27,13 @@ class AsciiDisplay {
 
         this.#canvasWidth = document.getElementById(canvasID).width = (charSize * 10 / 16) * width;
         //the width of the canvas is the 10 16ths of charSize multiplied the width in characters.
-        
+
         this.#canvasHeight = document.getElementById(canvasID).height = charSize * height;
         //the height of the canvas is the height in characters multiplied by charSize.
 
         this.#ctx = document.getElementById(canvasID).getContext("2d");
         //gets context of the canvas with the specified ID.
-        
+
         this.#ctx.font = this.#charSize + "px monospace";
         //stes the font to monospace and the size of the font to charSize.
 
@@ -70,11 +70,11 @@ class AsciiDisplay {
 
         for (let i = this.displayLayers.length; i-- > 0;) {
 
-            if(this.displayLayers[i].display)
-            transferCharData(
-                0, 0, this.#width, this.#height, this.displayLayers[i].shadedChars,
-                0, 0, this.#width, this.#height, this.#chars
-            );//transfers the char data in each layer to this.#chars.
+            if (this.displayLayers[i].display)
+                transferCharData(
+                    0, 0, this.#width, this.#height, this.displayLayers[i].shadedChars,
+                    0, 0, this.#width, this.#height, this.#chars
+                );//transfers the char data in each layer to this.#chars.
 
         }
 
@@ -107,9 +107,15 @@ class AsciiDisplay {
         return layer;
     }//this adds a layer and returns that layer
 
+    addUiLayer(navWidth, navHeight, name) {
+        const layer = new UiLayer(this.#width, this.#height, navWidth, navHeight, name);
+        this.displayLayers.push(layer);
+        return layer;
+    }//this adds a ui layer and returns that layer
+
     removeDisplayLayer(layerName) {
-        for(let i = this.displayLayers.length; i-- > 0;){
-            if(this.displayLayers[i].name === layerName)
+        for (let i = this.displayLayers.length; i-- > 0;) {
+            if (this.displayLayers[i].name === layerName)
                 this.displayLayers.splice(i, 1);
         }
     }//this removes a layer
@@ -122,7 +128,7 @@ class AsciiDisplay {
     }//sets the shader
 
     removeShader() {
-        this.#hasShader = false; 
+        this.#hasShader = false;
     }//removes the shader
 
 }
@@ -154,10 +160,12 @@ class DisplayLayer {
 
         this.display = true;//if this is false, the layer is hidden.
 
-        this.#camera = camera;//this sets the camera to the camera of the AsciiDiaplay that
+        this.#camera = camera;
+        //this sets the camera to the camera of the AsciiDiaplay that
         //created the layer.
 
-        this.relativePosition = true;//this controls if objects are displayed from the point of
+        this.relativePosition = true;
+        //this controls if objects are displayed from the point of
         ///the camera or from (0, 0).
     }
 
@@ -183,8 +191,8 @@ class DisplayLayer {
     }//adds ascii objects to the layer and returns the object
 
     removeAsciiObject(objectName) {
-        for(let i = this.asciiObjects.length; i-- > 0;){
-            if(this.asciiObjects[i].name === objectName)
+        for (let i = this.asciiObjects.length; i-- > 0;) {
+            if (this.asciiObjects[i].name === objectName)
                 this.asciiObjects.splice(i, 1);
         }
     }//removes ascii objects from the layer
@@ -202,12 +210,13 @@ class DisplayLayer {
             const temp = this.asciiObjects[i];
             //stores the current asciiObject as "temp"
 
-            transferCharData(
-                temp.x, temp.y, temp.width, temp.height, temp.shadedChars,
-                ((this.relativePosition) ? this.#camera.x : 0),
-                ((this.relativePosition) ? this.#camera.y : 0),
-                this.#width, this.#height, this.#chars
-            );//transfers the char data from the ascii object to the layer
+            if (temp.display)
+                transferCharData(
+                    temp.x, temp.y, temp.width, temp.height, temp.shadedChars,
+                    ((this.relativePosition) ? this.#camera.x : 0),
+                    ((this.relativePosition) ? this.#camera.y : 0),
+                    this.#width, this.#height, this.#chars
+                );//transfers the char data from the ascii object to the layer
         }
     }
 
@@ -229,6 +238,8 @@ class AsciiObject {
     constructor(x, y, width, height, name, chars) {
         this.#name = name;
 
+        this.display = true;
+
         this.x = x;//
         this.y = y;//x and y positions
 
@@ -239,7 +250,7 @@ class AsciiObject {
 
         this.shaderInfo = {};//any info passed to the shader other than chars
 
-        if(typeof chars === "function"){
+        if (typeof chars === "function") {
             chars = chars();
         }//this allows chars to be created by a function
 
@@ -279,6 +290,150 @@ class AsciiObject {
     }//gets chars and applies a shader if one exists.
 }
 
+class UiLayer {
+
+    #displayLayer;
+    #navArray;
+    #navWidth;
+    #navHeight;
+    #name;
+    #highlightedElement;
+
+    constructor(width, height, navWidth, navHeight, name) {
+        this.display = true;
+
+        this.#navArray = new Uint16Array(navWidth * navHeight);
+        //an array used to represent navigation across the UI
+
+        this.#navWidth = navWidth;
+        this.#navHeight = navHeight;
+        //dimensions of the navArray
+
+        this.#name = name;
+
+        this.#displayLayer = new DisplayLayer(width, height, { x: 0, y: 0 }, "");
+        //the display layer
+
+        this.navPosition = { x: 0, y: 0 };
+    }
+
+    get name() {
+        return this.#name;
+    }
+
+    set shader(shaderFunction) {
+        this.#displayLayer.shader = shaderFunction;
+    }//sets the shader
+
+    removeShader() {
+        this.#displayLayer.removeShader();
+    }//removes shader
+
+    get shadedChars() {
+        return this.#displayLayer.shadedChars;
+    }//gets chars
+
+    addAsciiObject(x, y, width, height, navX, navY, navWidth, navHeight, chars) {
+        const asciiObject = new AsciiObject(x, y, width, height, "", chars);
+        this.#displayLayer.asciiObjects.push(asciiObject);
+        asciiObject.shaderInfo.highlighted = false;
+        asciiObject.shaderInfo.selected = false;
+
+        const temp = new Int16Array(navWidth * navHeight);
+
+        for (let i = navWidth * navHeight; i-- > 0;) {
+            temp[i] = this.#displayLayer.asciiObjects.length;
+        }
+
+        transferCharData(navX, navY, navWidth, navHeight, temp, 0, 0,
+            this.#navWidth, this.#navHeight, this.#navArray);
+
+        return asciiObject;
+    }//adds ascii objects to the layer and returns the object
+
+    #navDirection(direction) {
+        let ignoreVal = this.#navArray[this.navPosition.x + this.navPosition.y * this.#navWidth];
+
+        while (
+            this.#navArray[this.navPosition.x + this.navPosition.y * this.#navWidth] ===
+            ignoreVal ||
+            this.#navArray[this.navPosition.x + this.navPosition.y * this.#navWidth] === 0
+        ) {
+            switch (direction) {
+                case 0:
+                    --this.navPosition.y;
+                    break
+                case 1:
+                    ++this.navPosition.y;
+                    break
+                case 2:
+                    --this.navPosition.x;
+                    break
+                case 3:
+                    ++this.navPosition.x;
+                    break
+            }
+
+            if (this.navPosition.y === -1 || this.navPosition.y === this.#navHeight) {
+                ignoreVal = 0;
+                direction ^= 1;
+                switch (direction) {
+                    case 0:
+                        --this.navPosition.y;
+                        break
+                    case 1:
+                        ++this.navPosition.y;
+                        break
+                }
+            }
+
+            if (this.navPosition.x === -1 || this.navPosition.x === this.#navWidth) {
+                ignoreVal = 0;
+                direction ^= 1;
+                switch (direction) {
+                    case 2:
+                        --this.navPosition.x;
+                        break
+                    case 3:
+                        ++this.navPosition.x;
+                        break
+                }
+            }
+        }
+
+        if(this.#highlightedElement !== undefined)
+            this.#displayLayer.asciiObjects[this.#highlightedElement].shaderInfo.highlighted = false;
+        this.#highlightedElement = 
+            this.#navArray[this.navPosition.x + this.navPosition.y * this.#navWidth] - 1;
+        this.#displayLayer.asciiObjects[this.#highlightedElement].shaderInfo.highlighted = true;
+
+    }//navigates the UI based on the direction given
+
+    highlight(index){
+        if(this.#highlightedElement !== undefined)
+            this.#displayLayer.asciiObjects[this.#highlightedElement].shaderInfo.highlighted = false;
+        this.#highlightedElement = index;
+        this.#displayLayer.asciiObjects[this.#highlightedElement].shaderInfo.highlighted = true;
+    }
+
+    navUp(){
+        this.#navDirection(0)
+    }//moves up
+
+    navDown(){
+        this.#navDirection(1)
+    }//moves down
+
+    navLeft(){
+        this.#navDirection(2)
+    }//moves left
+
+    navRight(){
+        this.#navDirection(3)
+    }//moves right
+
+}
+
 function transferCharData(x1, y1, width1, height1, chars1, x2, y2, width2, height2, chars2) {
     //this function takes 2 arrays of characters with color data that exist in 2d space,
     //and transfers data from the first to the second where they intersect, however it 
@@ -298,4 +453,26 @@ function transferCharData(x1, y1, width1, height1, chars1, x2, y2, width2, heigh
 
         }
     }
+}
+
+function makeBox(w, h) {
+    //returns an array of 32bit integers that make a box of a given size
+    const temp = new Int32Array(w * h);
+  
+    for (let i = w; i-- > 0;) {
+      temp[i] = 0X2DFFFFFF;
+      temp[i + (h - 1) * w] = 0X2DFFFFFF;
+    }
+  
+    for (let i = h; i-- > 0;) {
+      temp[i * w] = 0X7CFFFFFF;
+      temp[w - 1 + i * w] = 0X7CFFFFFF;
+    }
+  
+    temp[0] = 0X2BFFFFFF;
+    temp[w - 1] = 0X2BFFFFFF;
+    temp[w * h - w] = 0X2BFFFFFF;
+    temp[w * h - 1] = 0X2BFFFFFF;
+  
+    return temp;
 }
