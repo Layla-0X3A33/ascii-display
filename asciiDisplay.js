@@ -86,8 +86,10 @@ class AsciiDisplay {
         for (let i = this.#width; i-- > 0;) {     //
             for (let j = this.#height; j-- > 0;) {//loops through each index in chars
 
-                this.#ctx.fillStyle = "#" +
-                    (this.#chars[i + j * this.#width] & 0XFFFFFF).toString(16);
+                this.#ctx.fillStyle = "rgb(" +
+                ((this.#chars[i + j * this.#width] & 0XFF0000) >> 16) + ", " +
+                ((this.#chars[i + j * this.#width] & 0XFF00) >> 8) + ", " +
+                (this.#chars[i + j * this.#width] & 0XFF) + ")";
                 //sets the fill style to the color data of the index
 
                 this.#ctx.fillText(
@@ -288,6 +290,14 @@ class AsciiObject {
     get shadedChars() {
         return (this.#hasShader) ? this.#shader(this.#chars, this.shaderInfo) : this.#chars;
     }//gets chars and applies a shader if one exists.
+
+    get chars() {
+        return this.#chars;
+    }//gets chars
+
+    setChars(charArray) {
+        if(charArray.length === this.#chars.length)this.#chars = new Int32Array(charArray);
+    }//sets chars if a valid value is given
 }
 
 class UiLayer {
@@ -333,11 +343,11 @@ class UiLayer {
         return this.#displayLayer.shadedChars;
     }//gets chars
 
-    addAsciiObject(x, y, width, height, navX, navY, navWidth, navHeight, chars) {
+    addAsciiObject(x, y, width, height, navX, navY, navWidth, navHeight, chars, selectFn) {
         const asciiObject = new AsciiObject(x, y, width, height, "", chars);
         this.#displayLayer.asciiObjects.push(asciiObject);
         asciiObject.shaderInfo.highlighted = false;
-        asciiObject.shaderInfo.selected = false;
+        asciiObject.selectFn = selectFn;
 
         const temp = new Int16Array(navWidth * navHeight);
 
@@ -414,7 +424,13 @@ class UiLayer {
             this.#displayLayer.asciiObjects[this.#highlightedElement].shaderInfo.highlighted = false;
         this.#highlightedElement = index;
         this.#displayLayer.asciiObjects[this.#highlightedElement].shaderInfo.highlighted = true;
-    }
+    }//highlights the object at your current nav position
+
+    select(){
+        this.#displayLayer.asciiObjects[this.#highlightedElement].selectFn(
+            this.#displayLayer.asciiObjects[this.#highlightedElement]
+        );
+    }//calls the select function of the highlighted object
 
     navUp(){
         this.#navDirection(0)
