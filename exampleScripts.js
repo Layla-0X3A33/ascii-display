@@ -84,3 +84,25 @@ window.addEventListener("keydown", (e) => {
   display.drawChars();
 
 })
+
+function makeBox(w, h) {
+  //returns an array of 32bit integers that make a box of a given size
+  const temp = new Int32Array(w * h);
+
+  for (let i = w; i-- > 0;) {
+    temp[i] = 0X2DFFFFFF;
+    temp[i + (h - 1) * w] = 0X2DFFFFFF;
+  }
+
+  for (let i = h; i-- > 0;) {
+    temp[i * w] = 0X7CFFFFFF;
+    temp[w - 1 + i * w] = 0X7CFFFFFF;
+  }
+
+  temp[0] = 0X2BFFFFFF;
+  temp[w - 1] = 0X2BFFFFFF;
+  temp[w * h - w] = 0X2BFFFFFF;
+  temp[w * h - 1] = 0X2BFFFFFF;
+
+  return temp;
+}
