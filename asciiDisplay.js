@@ -103,8 +103,8 @@ class AsciiDisplay {
         }
     }
 
-    addDisplayLayer(name) {
-        const layer = new DisplayLayer(this.#width, this.#height, this.camera, name);
+    addDisplayLayer(name, buffers) {
+        const layer = new DisplayLayer(this.#width, this.#height, this.camera, name, buffers);
         this.displayLayers.push(layer);
         return layer;
     }//this adds a layer and returns that layer
@@ -145,13 +145,13 @@ class DisplayLayer {
     #camera;
     #name;
 
-    constructor(width, height, camera, name) {
+    constructor(width, height, camera, name, buffers) {
         this.#name = name;
 
         this.#width = width;  //sets the width and heigth to the width and height of the 
         this.#height = height;//instance of AsciiDisplay that created the layer.
 
-        this.#chars = new Int32Array(width * height);
+        this.#chars = new Int32Array(width * height * (buffers + 1));
         //creates an array of 32 bit integers to store display data.
 
         this.#shader = undefined;//
@@ -171,6 +171,14 @@ class DisplayLayer {
         ///the camera or from (0, 0).
     }
 
+    get width() {
+        return this.#width;
+    }//gets width.
+
+    get height() {
+        return this.#height;
+    }//gets height.
+
     get name() {
         return this.#name;
     }
@@ -186,8 +194,9 @@ class DisplayLayer {
         this.#hasShader = false;
     }//removes shader
 
-    addAsciiObject(x, y, width, height, name, chars) {
-        const asciiObject = new AsciiObject(x, y, width, height, name, chars);
+    addAsciiObject(x, y, width, height, name, chars, buffer) {
+        if(buffer === undefined)buffer = 0;
+        const asciiObject = new AsciiObject(x, y, width, height, name, chars, buffer);
         this.asciiObjects.push(asciiObject);
         return asciiObject;
     }//adds ascii objects to the layer and returns the object
@@ -202,7 +211,7 @@ class DisplayLayer {
     get layerAscii() {//gets the display data from ascii objects in the layer,
         //and transfers that data to the layer
 
-        for (let i = this.#width * this.#height; i-- > 0;) {
+        for (let i = this.#chars.length; i-- > 0;) {
             this.#chars[i] = 0;
         }//clears previous data stored in chars
 
@@ -214,10 +223,11 @@ class DisplayLayer {
 
             if (temp.display)
                 transferCharData(
-                    temp.x, temp.y, temp.width, temp.height, temp.shadedChars,
+                    temp.x, temp.y,
+                    temp.width, temp.height, temp.shadedChars,
                     ((this.relativePosition) ? this.#camera.x : 0),
                     ((this.relativePosition) ? this.#camera.y : 0),
-                    this.#width, this.#height, this.#chars
+                    this.#width, this.#height, this.#chars, temp.buffer
                 );//transfers the char data from the ascii object to the layer
         }
     }
@@ -237,7 +247,9 @@ class AsciiObject {
     #height;
     #name;
 
-    constructor(x, y, width, height, name, chars) {
+    constructor(x, y, width, height, name, chars, buffer) {
+        this.buffer = buffer;
+        
         this.#name = name;
 
         this.display = true;
@@ -321,7 +333,7 @@ class UiLayer {
 
         this.#name = name;
 
-        this.#displayLayer = new DisplayLayer(width, height, { x: 0, y: 0 }, "");
+        this.#displayLayer = new DisplayLayer(width, height, { x: 0, y: 0 }, "", 0);
         //the display layer
 
         this.navPosition = { x: 0, y: 0 };
@@ -344,7 +356,7 @@ class UiLayer {
     }//gets chars
 
     addAsciiObject(x, y, width, height, navX, navY, navWidth, navHeight, chars, selectFn) {
-        const asciiObject = new AsciiObject(x, y, width, height, "", chars);
+        const asciiObject = new AsciiObject(x, y, width, height, "", chars, 0);
         this.#displayLayer.asciiObjects.push(asciiObject);
         asciiObject.shaderInfo.highlighted = false;
         asciiObject.selectFn = selectFn;
@@ -450,7 +462,8 @@ class UiLayer {
 
 }
 
-function transferCharData(x1, y1, width1, height1, chars1, x2, y2, width2, height2, chars2) {
+function transferCharData(x1, y1, width1, height1, chars1, x2, y2, width2, height2, chars2, buffer)
+{
     //this function takes 2 arrays of characters with color data that exist in 2d space,
     //and transfers data from the first to the second where they intersect, however it 
     //does not copy the value 0
@@ -460,11 +473,13 @@ function transferCharData(x1, y1, width1, height1, chars1, x2, y2, width2, heigh
     const maxX = (x1 + width1 < x2 + width2) ? x1 + width1 : x2 + width2;
     const maxY = (y1 + height1 < y2 + height2) ? y1 + height1 : y2 + height2;
 
+    buffer = (buffer === undefined) ? 0 : buffer * width2 * height2;
+
     for (let i = minX; i < maxX; ++i) {
         for (let j = minY; j < maxY; ++j) {
 
             if (chars1[i - x1 + (j - y1) * width1] !== 0)
-                chars2[i - x2 + (j - y2) * width2] =
+                chars2[i - x2 + (j - y2) * width2 + buffer] =
                     chars1[i - x1 + (j - y1) * width1];
 
         }
